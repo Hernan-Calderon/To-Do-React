@@ -3,6 +3,9 @@ import { ToDoCounter } from "./components/ToDoCounter";
 import { ToDoSearch } from "./components/ToDoSearch";
 import { ToDoList } from "./components/ToDoList";
 import { ToDoCreate } from "./components/ToDoCreate";
+import { ToDosLoading } from "./components/ToDosLoading";
+import { TodosError } from "./components/TodosError";
+import { ToDosEmpty } from "./components/ToDosEmpty";
 import {
   getRequest,
   postRequest,
@@ -10,11 +13,16 @@ import {
   deleteRequest,
 } from "./services/AxiosToDoService";
 import { useEffect, useState } from "react";
+import Modal from "./components/Modal";
+import { ToDoForm } from "./components/ToDoForm";
 
 function App() {
   const [texto, setTexto] = useState("");
   const [toDos, setToDos] = useState([]);
-  const [datos, setDatos] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [openModal, setOpenModal] = useState(false);
 
   const total = toDos.length;
   const completed = toDos.filter((toDo) => toDo.completed === true).length;
@@ -30,7 +38,7 @@ function App() {
       await pushRequest(toDo);
       setToDos(newToDos);
     } catch (error) {
-      console.log(error.message);
+      setErrorMessage(error.message);
     }
   };
 
@@ -40,20 +48,19 @@ function App() {
       await deleteRequest(id);
       setToDos(newToDos);
     } catch (error) {
-      console.log(error.message);
+      setErrorMessage(error.message);
     }
   };
 
-  function crearToDo() {
-    if (texto !== "") {
+  function crearToDo(textoToDo) {
+    if (textoToDo !== "") {
       const postToDo = async () => {
         try {
-          const body = { text: texto, completed: false };
+          const body = { text: textoToDo, completed: false };
           const respuesta = await postRequest(body);
           setToDos([...toDos, respuesta.data]);
-          setTexto("");
         } catch (error) {
-          console.log(error.message);
+          setErrorMessage(error.message);
         }
       };
       postToDo();
@@ -64,9 +71,11 @@ function App() {
     try {
       const respuesta = await getRequest();
       setToDos(respuesta.data);
-      setDatos(respuesta.data);
+      setLoading(false);
     } catch (error) {
-      console.log(error.message);
+      setLoading(false);
+      setError(true);
+      setErrorMessage(error.message);
     }
   };
 
@@ -78,8 +87,17 @@ function App() {
     <>
       <ToDoCounter total={total} completed={completed} />
       <ToDoSearch texto={texto} setTexto={setTexto} />
-      <p>{datos ? "" : "Cargando..."}</p>
+
       <ToDoList>
+        {loading && (
+          <>
+            <ToDosLoading />
+            <ToDosLoading />
+            <ToDosLoading />
+          </>
+        )}
+        {error && <TodosError errorMessage={errorMessage} />}
+        {!error && !loading && serchedToDos.length === 0 && <ToDosEmpty />}
         {serchedToDos.map((toDo) => (
           <ToDoItem
             key={toDo.id}
@@ -92,7 +110,13 @@ function App() {
         ))}
       </ToDoList>
 
-      <ToDoCreate crearToDo={crearToDo} />
+      <ToDoCreate setOpenModal={setOpenModal} openModal={openModal} />
+
+      {openModal && (
+        <Modal>
+          <ToDoForm setOpenModal={setOpenModal} crearToDo={crearToDo} />
+        </Modal>
+      )}
     </>
   );
 }
